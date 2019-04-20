@@ -1,6 +1,5 @@
 module DelayedCronJob
   class Plugin < Delayed::Plugin
-
     class << self
       def cron?(job)
         job.cron.present?
@@ -8,7 +7,6 @@ module DelayedCronJob
     end
 
     callbacks do |lifecycle|
-
       # Prevent rescheduling of failed jobs as this is already done
       # after perform.
       lifecycle.around(:error) do |worker, job, &block|
@@ -51,6 +49,5 @@ module DelayedCronJob
         end
       end
     end
-
   end
 end
