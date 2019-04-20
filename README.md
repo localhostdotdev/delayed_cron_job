@@ -19,8 +19,17 @@ If you are using `delayed_job_active_record`, generate a migration (after the
 original delayed job migration) to add the `cron` column to the `delayed_jobs`
 table:
 
-    $ rails generate delayed_job:cron
-    $ rake db:migrate
+    $ rails generate migration AddCronToDelayedJobs
+
+```ruby
+class AddCronToDelayedJobs < ActiveRecord::Migration[6.0]
+  def change
+    add_column :delayed_jobs, :cron, :string
+  end
+end
+```
+
+    $ rails db:migrate
 
 There are no additional steps for `delayed_job_mongoid`.
 
@@ -47,11 +56,9 @@ application. Using a common super class makes this simple:
 
 ```ruby
 class CronJob < ActiveJob::Base
-
   class_attribute :cron_expression
 
   class << self
-
     def schedule
       set(cron: cron_expression).perform_later unless scheduled?
     end
@@ -69,7 +76,6 @@ class CronJob < ActiveJob::Base
         .where('handler LIKE ?', "%job_class: #{name}%")
         .first
     end
-
   end
 end
 ```
