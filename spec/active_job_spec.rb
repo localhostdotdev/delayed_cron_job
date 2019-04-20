@@ -1,7 +1,6 @@
 require 'spec_helper'
 
 describe ActiveJob do
-
   class CronJob < ActiveJob::Base
     class_attribute :cron
 
@@ -14,11 +13,11 @@ describe ActiveJob do
 
   before { Delayed::Job.delete_all }
 
-  let(:cron)    { '5 1 * * *' }
-  let(:job)     { CronJob.set(cron: cron).perform_later }
+  let(:cron) { '5 1 * * *' }
+  let(:job) { CronJob.set(cron: cron).perform_later }
   let(:delayed_job) { Delayed::Job.first }
-  let(:worker)  { Delayed::Worker.new }
-  let(:now)     { Delayed::Job.db_time_now }
+  let(:worker) { Delayed::Worker.new }
+  let(:now) { Delayed::Job.db_time_now }
   let(:next_run) do
     run = now.hour * 60 + now.min >= 65 ? now + 1.day : now
     Time.utc(run.year, run.month, run.day, 1, 5)

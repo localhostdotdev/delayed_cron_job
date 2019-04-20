@@ -6,8 +6,7 @@ require 'delayed_cron_job/version'
 require 'delayed_cron_job/backend/updatable_cron'
 require 'delayed_job_active_record'
 
-module DelayedCronJob
-end
+module DelayedCronJob; end
 
 Delayed::Backend::ActiveRecord::Job.send(
   :include,

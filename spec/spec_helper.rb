@@ -23,30 +23,27 @@ ENV['RAILS_ENV'] = 'test'
 
 ActiveJob::Base.queue_adapter = :delayed_job
 
-ActiveRecord::Base.establish_connection :adapter => 'sqlite3', :database => ':memory:'
+ActiveRecord::Base.establish_connection adapter: 'sqlite3', database: ':memory:'
 ActiveRecord::Base.logger = Delayed::Worker.logger
 ActiveRecord::Migration.verbose = false
 
 ActiveRecord::Schema.define do
-  create_table :delayed_jobs, :force => true do |t|
-    t.integer  :priority, :default => 0
-    t.integer  :attempts, :default => 0
-    t.text     :handler
-    t.text     :last_error
+  create_table :delayed_jobs, force: true do |t|
+    t.integer :priority, default: 0
+    t.integer :attempts, default: 0
+    t.text :handler
+    t.text :last_error
     t.datetime :run_at
     t.datetime :locked_at
     t.datetime :failed_at
-    t.string   :locked_by
-    t.string   :queue
-    t.string   :cron
+    t.string :locked_by
+    t.string :queue
+    t.string :cron
     t.timestamps null: false
   end
 
-  add_index :delayed_jobs, [:priority, :run_at], :name => 'delayed_jobs_priority'
+  add_index :delayed_jobs, %i[priority run_at], name: 'delayed_jobs_priority'
 end
-
 
 # See http://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
-RSpec.configure do |config|
-
-end
+RSpec.configure { |config| }

@@ -39,24 +39,31 @@ module DelayedCronJob
     attr_reader :timezone
 
     def initialize(line)
-      raise ArgumentError.new(
-        "not a string: #{line.inspect}"
-      ) unless line.is_a?(String)
+      unless line.is_a?(String)
+        raise ArgumentError.new("not a string: #{line.inspect}")
+      end
 
       @original = line
 
       items = line.split
 
-      @timezone = (TZInfo::Timezone.get(items.last) rescue nil)
+      @timezone =
+        (
+          begin
+            TZInfo::Timezone.get(items.last)
+          rescue StandardError
+            nil
+          end
+        )
       items.pop if @timezone
 
-      raise ArgumentError.new(
-        "not a valid cronline : '#{line}'"
-      ) unless items.length == 5 or items.length == 6
+      unless items.length == 5 or items.length == 6
+        raise ArgumentError.new("not a valid cronline : '#{line}'")
+      end
 
       offset = items.length - 5
 
-      @seconds = offset == 1 ? parse_item(items[0], 0, 59) : [ 0 ]
+      @seconds = offset == 1 ? parse_item(items[0], 0, 59) : [0]
       @minutes = parse_item(items[0 + offset], 0, 59)
       @hours = parse_item(items[1 + offset], 0, 24)
       @days = parse_item(items[2 + offset], 1, 31)
@@ -64,9 +71,9 @@ module DelayedCronJob
       @weekdays, @monthdays = parse_weekdays(items[4 + offset])
 
       [@seconds, @minutes, @hours, @months].each do |es|
-        raise ArgumentError.new(
-          "invalid cronline: '#{line}'"
-        ) if es && es.find { |e| ! e.is_a?(Integer) }
+        if es && es.find { |e| !e.is_a?(Integer) }
+          raise ArgumentError.new("invalid cronline: '#{line}'")
+        end
       end
     end
 
@@ -114,18 +121,21 @@ module DelayedCronJob
       loop do
         unless date_match?(time)
           dst = time.isdst
-          time += (24 - time.hour) * 3600 - time.min * 60 - time.sec
-          time -= 3600 if time.isdst != dst # not necessary for winter, but...
+          time += (24 - time.hour) * 3_600 - time.min * 60 - time.sec
+          time -= 3_600 if time.isdst != dst # not necessary for winter, but...
           next
         end
         unless sub_match?(time, :hour, @hours)
-          time += (60 - time.min) * 60 - time.sec; next
+          time += (60 - time.min) * 60 - time.sec
+          next
         end
         unless sub_match?(time, :min, @minutes)
-          time += 60 - time.sec; next
+          time += 60 - time.sec
+          next
         end
         unless sub_match?(time, :sec, @seconds)
-          time += 1; next
+          time += 1
+          next
         end
 
         break
@@ -133,7 +143,7 @@ module DelayedCronJob
 
       global_time(time, from.utc?)
     rescue TZInfo::PeriodNotFound
-      next_time(from + 3600)
+      next_time(from + 3_600)
     end
 
     # Returns the previous time the cronline matched. It's like next_time, but
@@ -147,16 +157,20 @@ module DelayedCronJob
 
       loop do
         unless date_match?(time)
-          time -= time.hour * 3600 + time.min * 60 + time.sec + 1; next
+          time -= time.hour * 3_600 + time.min * 60 + time.sec + 1
+          next
         end
         unless sub_match?(time, :hour, @hours)
-          time -= time.min * 60 + time.sec + 1; next
+          time -= time.min * 60 + time.sec + 1
+          next
         end
         unless sub_match?(time, :min, @minutes)
-          time -= time.sec + 1; next
+          time -= time.sec + 1
+          next
         end
         unless sub_match?(time, :sec, @seconds)
-          time -= 1; next
+          time -= 1
+          next
         end
 
         break
@@ -229,7 +243,7 @@ module DelayedCronJob
     def brute_frequency
       delta = 366 * DAY_S
 
-      t0 = previous_time(Time.local(2000, 1, 1))
+      t0 = previous_time(Time.local(2_000, 1, 1))
 
       loop do
         break if delta <= 1
@@ -240,7 +254,7 @@ module DelayedCronJob
         delta = d if d < delta
 
         break if @months == nil && t1.month == 2
-        break if t1.year == 2001
+        break if t1.year == 2_001
 
         t0 = t1
       end
@@ -264,9 +278,11 @@ module DelayedCronJob
 
       items.each do |it|
         if m = it.match(/^(.+)#(l|-?[12345])$/)
-          raise ArgumentError.new(
-            "ranges are not supported for monthdays (#{it})"
-          ) if m[1].index('-')
+          if m[1].index('-')
+            raise ArgumentError.new(
+                    "ranges are not supported for monthdays (#{it})"
+                  )
+          end
 
           expr = it.gsub(/#l/, '#-1')
 
@@ -275,11 +291,11 @@ module DelayedCronJob
           expr = it.dup
           WEEKDAYS.each_with_index { |a, i| expr.gsub!(/#{a}/, i.to_s) }
 
-          raise ArgumentError.new(
-            "invalid weekday expression (#{it})"
-          ) if expr !~ /^0*[0-7](-0*[0-7])?$/
+          if expr !~ /^0*[0-7](-0*[0-7])?$/
+            raise ArgumentError.new("invalid weekday expression (#{it})")
+          end
 
-          its = expr.index('-') ? parse_range(expr, 0, 7) : [ Integer(expr) ]
+          its = expr.index('-') ? parse_range(expr, 0, 7) : [Integer(expr)]
           its = its.collect { |i| i == 7 ? 0 : i }
 
           (weekdays ||= []).concat(its)
@@ -296,25 +312,23 @@ module DelayedCronJob
 
       r = item.split(',').map { |i| parse_range(i.strip, min, max) }.flatten
 
-      raise ArgumentError.new(
-        "found duplicates in #{item.inspect}"
-      ) if r.uniq.size < r.size
+      if r.uniq.size < r.size
+        raise ArgumentError.new("found duplicates in #{item.inspect}")
+      end
 
       r
     end
 
-    RANGE_REGEX = /^(\*|\d{1,2})(?:-(\d{1,2}))?(?:\/(\d{1,2}))?$/
+    RANGE_REGEX = %r{^(\*|\d{1,2})(?:-(\d{1,2}))?(?:\/(\d{1,2}))?$}
 
     def parse_range(item, min, max)
       return %w[L] if item == 'L'
 
-      item = '*' + item if item.match(/^\//)
+      item = '*' + item if item.match(%r{^\/})
 
       m = item.match(RANGE_REGEX)
 
-      raise ArgumentError.new(
-        "cannot parse #{item.inspect}"
-      ) unless m
+      raise ArgumentError.new("cannot parse #{item.inspect}") unless m
 
       sta = m[1]
       sta = sta == '*' ? min : sta.to_i
@@ -326,9 +340,11 @@ module DelayedCronJob
       inc = m[3]
       inc = inc ? inc.to_i : 1
 
-      raise ArgumentError.new(
-        "#{item.inspect} is not in range #{min}..#{max}"
-      ) if sta < min || edn > max
+      if sta < min || edn > max
+        raise ArgumentError.new(
+                "#{item.inspect} is not in range #{min}..#{max}"
+              )
+      end
 
       r = []
       val = sta
@@ -392,7 +408,7 @@ module DelayedCronJob
         neg = neg - 1
       end
 
-      [ "#{WEEKDAYS[date.wday]}##{pos}", "#{WEEKDAYS[date.wday]}##{neg}" ]
+      ["#{WEEKDAYS[date.wday]}##{pos}", "#{WEEKDAYS[date.wday]}##{neg}"]
     end
 
     def local_time(time)

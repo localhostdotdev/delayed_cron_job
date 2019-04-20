@@ -1,18 +1,17 @@
 require 'spec_helper'
 
 describe DelayedCronJob do
-
   class TestJob
     def perform; end
   end
 
   before { Delayed::Job.delete_all }
 
-  let(:cron)    { '5 1 * * *' }
+  let(:cron) { '5 1 * * *' }
   let(:handler) { TestJob.new }
-  let(:job)     { Delayed::Job.enqueue(handler, cron: cron) }
-  let(:worker)  { Delayed::Worker.new }
-  let(:now)     { Delayed::Job.db_time_now }
+  let(:job) { Delayed::Job.enqueue(handler, cron: cron) }
+  let(:worker) { Delayed::Worker.new }
+  let(:now) { Delayed::Job.db_time_now }
   let(:next_run) do
     run = now.hour * 60 + now.min >= 65 ? now + 1.day : now
     Time.utc(run.year, run.month, run.day, 1, 5)
@@ -25,8 +24,9 @@ describe DelayedCronJob do
     end
 
     it 'enqueue fails with invalid cron' do
-      expect { Delayed::Job.enqueue(handler, cron: 'no valid cron') }.
-        to raise_error(ArgumentError)
+      expect {
+        Delayed::Job.enqueue(handler, cron: 'no valid cron')
+      }.to raise_error(ArgumentError)
     end
 
     it 'schedules a new job after success' do
@@ -74,19 +74,21 @@ describe DelayedCronJob do
       expect(j.cron).to eq(job.cron)
       expect(j.run_at).to eq(next_run)
       expect(j.attempts).to eq(1)
-      expect(j.last_error).to match("execution expired")
+      expect(j.last_error).to match('execution expired')
     end
 
     it 'schedules new job after deserialization error' do
       Delayed::Worker.max_run_time = 1.second
       job.update_column(:run_at, now)
-      allow_any_instance_of(TestJob).to receive(:perform).and_raise(Delayed::DeserializationError)
+      allow_any_instance_of(TestJob).to receive(:perform).and_raise(
+        Delayed::DeserializationError
+      )
 
       worker.work_off
 
       expect(Delayed::Job.count).to eq(1)
       j = Delayed::Job.first
-      expect(j.last_error).to match("Delayed::DeserializationError")
+      expect(j.last_error).to match('Delayed::DeserializationError')
     end
 
     it 'has empty last_error after success' do
@@ -113,10 +115,11 @@ describe DelayedCronJob do
         job = Delayed::Job.enqueue(handler, cron: '* * * * *')
         run = now.hour == 23 && now.min == 59 ? now + 1.day : now
         hour = now.min == 59 ? (now.hour + 1) % 24 : now.hour
-        run_at = Time.utc(run.year, run.month, run.day, hour, (now.min + 1) % 60)
+        run_at =
+          Time.utc(run.year, run.month, run.day, hour, (now.min + 1) % 60)
         expect(job.run_at).to eq(run_at)
       else
-        pending "This test only makes sense in non-UTC time zone"
+        pending 'This test only makes sense in non-UTC time zone'
       end
     end
 
@@ -146,7 +149,9 @@ describe DelayedCronJob do
 
     it 'uses new cron when this is updated while job is running' do
       job.update_column(:run_at, now)
-      allow_any_instance_of(TestJob).to receive(:perform) { job.update!(cron: '1 10 * * *') }
+      allow_any_instance_of(TestJob).to receive(:perform) {
+        job.update!(cron: '1 10 * * *')
+      }
 
       worker.work_off
 
@@ -156,7 +161,9 @@ describe DelayedCronJob do
 
     it 'does not reschedule job if cron is cleared while job is running' do
       job.update_column(:run_at, now)
-      allow_any_instance_of(TestJob).to receive(:perform) { job.update!(cron: '') }
+      allow_any_instance_of(TestJob).to receive(:perform) {
+        job.update!(cron: '')
+      }
 
       expect { worker.work_off }.to change { Delayed::Job.count }.by(-1)
     end
@@ -167,7 +174,6 @@ describe DelayedCronJob do
 
       expect { worker.work_off }.to change { Delayed::Job.count }.by(-1)
     end
-
   end
 
   context 'without cron' do

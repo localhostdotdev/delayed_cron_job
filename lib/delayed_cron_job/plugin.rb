@@ -9,12 +9,15 @@ module DelayedCronJob
     callbacks do |lifecycle|
       # Prevent rescheduling of failed jobs as this is already done
       # after perform.
-      lifecycle.around(:error) do |worker, job, &block|
+      lifecycle
+        .around(:error) do |worker, job, &block|
         if cron?(job)
           job.error = $ERROR_INFO
-          worker.job_say(job,
-                         "FAILED with #{$ERROR_INFO.class.name}: #{$ERROR_INFO.message}",
-                         Logger::ERROR)
+          worker.job_say(
+            job,
+            "FAILED with #{$ERROR_INFO.class.name}: #{$ERROR_INFO.message}",
+            Logger::ERROR
+          )
           job.destroy
         else
           # No cron job - proceed as normal
@@ -24,16 +27,12 @@ module DelayedCronJob
 
       # Reset the last_error to have the correct status of the last run.
       lifecycle.before(:perform) do |worker, job|
-        if cron?(job)
-          job.last_error = nil
-        end
+        job.last_error = nil if cron?(job)
       end
 
       # Update the cron expression from the database in case it was updated.
       lifecycle.after(:invoke_job) do |job|
-        if cron?(job)
-          job.cron = job.class.where(:id => job.id).pluck(:cron).first
-        end
+        job.cron = job.class.where(id: job.id).pluck(:cron).first if cron?(job)
       end
 
       # Schedule the next run based on the cron attribute.
