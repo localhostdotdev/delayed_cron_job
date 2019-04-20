@@ -9,8 +9,14 @@ require 'delayed_job_active_record'
 module DelayedCronJob
 end
 
-Delayed::Backend::ActiveRecord::Job.send(:include, DelayedCronJob::Backend::UpdatableCron)
-Delayed::Backend::ActiveRecord::Job.attr_accessible(:cron)
+Delayed::Backend::ActiveRecord::Job.send(
+  :include,
+  DelayedCronJob::Backend::UpdatableCron
+)
+
+class Delayed::Backend::ActiveRecord::Job
+  attr_accessor :cron
+end
 
 Delayed::Worker.plugins << DelayedCronJob::Plugin
 
@@ -18,4 +24,7 @@ require 'delayed_cron_job/active_job/enqueuing'
 require 'delayed_cron_job/active_job/queue_adapter'
 
 ActiveJob::Base.send(:include, DelayedCronJob::ActiveJob::Enqueuing)
-ActiveJob::QueueAdapters::DelayedJobAdapter.extend(DelayedCronJob::ActiveJob::QueueAdapter)
+
+ActiveJob::QueueAdapters::DelayedJobAdapter.extend(
+  DelayedCronJob::ActiveJob::QueueAdapter
+)
