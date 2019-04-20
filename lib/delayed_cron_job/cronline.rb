@@ -22,17 +22,11 @@
 # Made in Japan.
 #++
 
-
 module DelayedCronJob
-
-  #
   # A 'cron line' is a line in the sense of a crontab
   # (man 5 crontab) file line.
-  #
   class Cronline
-
     # The string used for creating this cronline instance.
-    #
     attr_reader :original
 
     attr_reader :seconds
@@ -45,7 +39,6 @@ module DelayedCronJob
     attr_reader :timezone
 
     def initialize(line)
-
       raise ArgumentError.new(
         "not a string: #{line.inspect}"
       ) unless line.is_a?(String)
@@ -70,8 +63,7 @@ module DelayedCronJob
       @months = parse_item(items[3 + offset], 1, 12)
       @weekdays, @monthdays = parse_weekdays(items[4 + offset])
 
-      [ @seconds, @minutes, @hours, @months ].each do |es|
-
+      [@seconds, @minutes, @hours, @months].each do |es|
         raise ArgumentError.new(
           "invalid cronline: '#{line}'"
         ) if es && es.find { |e| ! e.is_a?(Integer) }
@@ -79,9 +71,7 @@ module DelayedCronJob
     end
 
     # Returns true if the given time matches this cron line.
-    #
     def matches?(time)
-
       time = Time.at(time) unless time.kind_of?(Time)
 
       time = @timezone.utc_to_local(time.getutc) if @timezone
@@ -94,9 +84,6 @@ module DelayedCronJob
     end
 
     # Returns the next time that this cron line is supposed to 'fire'
-    #
-    # This is raw, 3 secs to iterate over 1 year on my macbook :( brutal.
-    # (Well, I was wrong, takes 0.001 sec on 1.8.7 and 1.9.1)
     #
     # This method accepts an optional Time parameter. It's the starting point
     # for the 'search'. By default, it's Time.now
@@ -117,13 +104,9 @@ module DelayedCronJob
     #   Rufus::Scheduler::CronLine.new('30 7 * * *').next_time(
     #     Time.utc(2008, 10, 24, 7, 29)).localtime
     #   #=> Fri Oct 24 02:30:00 -0500 2008
-    #
-    # (Thanks to K Liu for the note and the examples)
-    #
-    def next_time(from=Time.now)
-
+    def next_time(from = Time.now)
       time = local_time(from)
-      time = round_to_seconds(time)
+      time = time.round
 
       # start at the next second
       time = time + 1
@@ -149,19 +132,15 @@ module DelayedCronJob
       end
 
       global_time(time, from.utc?)
-
     rescue TZInfo::PeriodNotFound
-
       next_time(from + 3600)
     end
 
     # Returns the previous time the cronline matched. It's like next_time, but
     # for the past.
-    #
-    def previous_time(from=Time.now)
-
+    def previous_time(from = Time.now)
       time = local_time(from)
-      time = round_to_seconds(time)
+      time = time.round
 
       # start at the previous second
       time = time - 1
@@ -184,18 +163,14 @@ module DelayedCronJob
       end
 
       global_time(time, from.utc?)
-
     rescue TZInfo::PeriodNotFound
-
       previous_time(time)
     end
 
     # Returns an array of 6 arrays (seconds, minutes, hours, days,
     # months, weekdays).
     # This method is used by the cronline unit tests.
-    #
     def to_array
-
       [
         @seconds,
         @minutes,
@@ -204,7 +179,7 @@ module DelayedCronJob
         @months,
         @weekdays,
         @monthdays,
-        @timezone ? @timezone.name : nil
+        @timezone&.name
       ]
     end
 
@@ -214,9 +189,7 @@ module DelayedCronJob
     # #brute_frequency, on the other hand, will compute the frequency by
     # examining a whole, that can take more than seconds for a seconds
     # level cron...
-    #
     def frequency
-
       return brute_frequency unless @seconds && @seconds.length > 1
 
       delta = 60
@@ -253,15 +226,12 @@ module DelayedCronJob
     #
     # See https://github.com/jmettraux/rufus-scheduler/issues/89
     # for a discussion about this method.
-    #
     def brute_frequency
-
       delta = 366 * DAY_S
 
       t0 = previous_time(Time.local(2000, 1, 1))
 
       loop do
-
         break if delta <= 1
         break if delta <= 60 && @seconds && @seconds.size == 1
 
@@ -280,12 +250,11 @@ module DelayedCronJob
 
     protected
 
-    WEEKDAYS = %w[ sun mon tue wed thu fri sat ]
-    DAY_S = 24 * 3600
-    WEEK_S = 7 * DAY_S
+    WEEKDAYS = %w[sun mon tue wed thu fri sat]
+    DAY_S = 24.hours
+    WEEK_S = 7.days
 
     def parse_weekdays(item)
-
       return nil if item == '*'
 
       items = item.downcase.split(',')
@@ -294,9 +263,7 @@ module DelayedCronJob
       monthdays = nil
 
       items.each do |it|
-
         if m = it.match(/^(.+)#(l|-?[12345])$/)
-
           raise ArgumentError.new(
             "ranges are not supported for monthdays (#{it})"
           ) if m[1].index('-')
@@ -304,9 +271,7 @@ module DelayedCronJob
           expr = it.gsub(/#l/, '#-1')
 
           (monthdays ||= []) << expr
-
         else
-
           expr = it.dup
           WEEKDAYS.each_with_index { |a, i| expr.gsub!(/#{a}/, i.to_s) }
 
@@ -323,11 +288,10 @@ module DelayedCronJob
 
       weekdays = weekdays.uniq if weekdays
 
-      [ weekdays, monthdays ]
+      [weekdays, monthdays]
     end
 
     def parse_item(item, min, max)
-
       return nil if item == '*'
 
       r = item.split(',').map { |i| parse_range(i.strip, min, max) }.flatten
@@ -342,8 +306,7 @@ module DelayedCronJob
     RANGE_REGEX = /^(\*|\d{1,2})(?:-(\d{1,2}))?(?:\/(\d{1,2}))?$/
 
     def parse_range(item, min, max)
-
-      return %w[ L ] if item == 'L'
+      return %w[L] if item == 'L'
 
       item = '*' + item if item.match(/^\//)
 
@@ -384,7 +347,6 @@ module DelayedCronJob
     end
 
     def sub_match?(time, accessor, values)
-
       value = time.send(accessor)
 
       return true if values.nil?
@@ -396,7 +358,6 @@ module DelayedCronJob
     end
 
     def monthday_match?(date, values)
-
       return true if values.nil?
 
       today_values = monthdays(date)
@@ -405,7 +366,6 @@ module DelayedCronJob
     end
 
     def date_match?(date)
-
       return false unless sub_match?(date, :day, @days)
       return false unless sub_match?(date, :month, @months)
       return false unless sub_match?(date, :wday, @weekdays)
@@ -414,7 +374,6 @@ module DelayedCronJob
     end
 
     def monthdays(date)
-
       pos = 1
       d = date.dup
 
@@ -437,12 +396,10 @@ module DelayedCronJob
     end
 
     def local_time(time)
-
       @timezone ? @timezone.utc_to_local(time.getutc) : time
     end
 
     def global_time(time, from_in_utc)
-
       if @timezone
         time =
           begin
@@ -454,12 +411,6 @@ module DelayedCronJob
       end
 
       time
-    end
-
-    def round_to_seconds(time)
-
-      # Ruby 1.8 doesn't have #round
-      time.respond_to?(:round) ? time.round : time - time.usec * 1e-6
     end
   end
 end
